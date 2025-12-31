@@ -531,7 +531,7 @@ def issuer_only_crlsign(builder: Builder) -> None:
     # Both CAs are trusted. The cert chain is valid (cert_signing_ca has keyCertSign).
     # The CRL is signed by crl_signing_ca which has only cRLSign but is trusted.
     # The CRL issuer name matches the leaf's issuer name, so the CRL applies.
-    builder.features([Feature.has_crl]).importance(
+    builder.features([Feature.has_crl, Feature.has_indirect_crl]).importance(
         Importance.HIGH
     ).server_validation().trusted_certs(cert_signing_ca, crl_signing_ca).peer_certificate(
         leaf

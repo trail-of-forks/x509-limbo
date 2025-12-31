@@ -42,6 +42,10 @@ fn evaluate_testcase(tc: &Testcase) -> TestcaseResult {
         );
     }
 
+    if tc.features.contains(&Feature::HasIndirectCrl) {
+        return TestcaseResult::skip(tc, "indirect CRLs are not supported by rustls");
+    }
+
     if !matches!(tc.validation_kind, ValidationKind::Server) {
         return TestcaseResult::skip(tc, "non-SERVER testcases not supported yet");
     }

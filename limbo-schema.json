@@ -24,7 +24,8 @@
         "pedantic-rfc5280",
         "rfc5280-incompatible-with-webpki",
         "denial-of-service",
-        "has-crl"
+        "has-crl",
+        "has-indirect-crl"
       ],
       "title": "Feature",
       "type": "string"
