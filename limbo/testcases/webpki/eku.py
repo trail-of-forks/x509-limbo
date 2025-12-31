@@ -279,6 +279,7 @@ def unrestricted_ca_issuing_serverauth(builder: Builder) -> None:
     intermediate = builder.intermediate_ca(
         root,
         subject=x509.Name.from_rfc4514_string("CN=x509-limbo-intermediate-unrestricted"),
+        key_usage=None
     )
 
     # Create leaf certificate with serverAuth
