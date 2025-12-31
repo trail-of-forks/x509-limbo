@@ -428,18 +428,46 @@ def issuer_valid_crlsign_and_keycertsign(builder: Builder) -> None:
 @testcase
 def issuer_only_crlsign(builder: Builder) -> None:
     """
-    Tests CRL validation when the CA issuer has a keyUsage extension with only
-    `cRLSign` set (no `keyCertSign`).
+    Tests CRL validation when the CRL is signed by a CA with only `cRLSign`
+    (no `keyCertSign`), using a split-key CA architecture.
 
-    This tests a CA that is authorized only for CRL signing. This is unusual
-    but valid - a CA could delegate CRL signing to a separate key.
-    The CRL should be accepted since the `cRLSign` bit is properly set.
+    Per RFC 5280 Section 6.3.3(f), if a key usage extension is present in the
+    CRL issuer's certificate, the `cRLSign` bit must be set. This test verifies
+    that a CRL signed by an entity with only `cRLSign` is accepted, as long as
+    the certificate chain itself is valid.
+
+    This simulates a split-key CA where the same CA identity has separate keys
+    for certificate signing and CRL signing. Both keys share the same subject
+    name, enabling the CRL to apply to certificates issued by the cert-signing key.
     """
     validation_time = datetime.fromisoformat("2024-01-01T00:00:00Z")
 
-    # Create a root CA with only cRLSign (no keyCertSign)
-    # This CA can sign CRLs but not certificates
-    root = builder.root_ca(
+    # Use the same issuer name for both CAs to simulate a split-key architecture
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Split-Key CA")])
+
+    # CA for signing certificates (with keyCertSign only, no cRLSign)
+    cert_signing_ca = builder.root_ca(
+        issuer=ca_name,
+        key_usage=ext(
+            x509.KeyUsage(
+                digital_signature=False,
+                key_cert_sign=True,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=False,
+        ),
+    )
+
+    # CA for signing CRLs (with cRLSign only, no keyCertSign)
+    # Same subject name as the cert-signing CA
+    crl_signing_ca = builder.root_ca(
+        issuer=ca_name,
         key_usage=ext(
             x509.KeyUsage(
                 digital_signature=False,
@@ -456,12 +484,9 @@ def issuer_only_crlsign(builder: Builder) -> None:
         ),
     )
 
-    # Note: The leaf is still signed by this root even though it lacks keyCertSign.
-    # This creates an invalid cert chain, but we're testing CRL validation, not
-    # certificate chain validation. The test focuses on whether the CRL issuer
-    # is authorized to sign CRLs.
+    # Leaf is signed by the cert-signing CA (valid certificate chain)
     leaf = builder.leaf_cert(
-        parent=root,
+        parent=cert_signing_ca,
         subject=x509.Name(
             [
                 x509.NameAttribute(NameOID.COMMON_NAME, "issuer-only-crlsign.example.com"),
@@ -474,8 +499,9 @@ def issuer_only_crlsign(builder: Builder) -> None:
         ),
     )
 
+    # CRL is signed by the CRL-signing CA (which has only cRLSign)
     crl = builder.crl(
-        signer=root,
+        signer=crl_signing_ca,
         revoked=[
             # Revoke a random certificate, not the leaf.
             x509.RevokedCertificateBuilder()
@@ -485,10 +511,13 @@ def issuer_only_crlsign(builder: Builder) -> None:
         ],
     )
 
-    # This test expects failure because the root CA lacks keyCertSign,
-    # making the certificate chain itself invalid (not just the CRL validation).
+    # Both CAs are trusted. The cert chain is valid (cert_signing_ca has keyCertSign).
+    # The CRL is signed by crl_signing_ca which has only cRLSign but is trusted.
+    # The CRL issuer name matches the leaf's issuer name, so the CRL applies.
     builder.features([Feature.has_crl]).importance(
         Importance.HIGH
-    ).server_validation().trusted_certs(root).peer_certificate(leaf).expected_peer_name(
+    ).server_validation().trusted_certs(cert_signing_ca, crl_signing_ca).peer_certificate(
+        leaf
+    ).expected_peer_name(
         models.PeerName(kind=PeerKind.DNS, value="issuer-only-crlsign.example.com")
-    ).crls(crl).validation_time(validation_time).fails()
+    ).crls(crl).validation_time(validation_time).succeeds()
