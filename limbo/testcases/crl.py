@@ -428,17 +428,21 @@ def issuer_valid_crlsign_and_keycertsign(builder: Builder) -> None:
 @testcase
 def issuer_only_crlsign(builder: Builder) -> None:
     """
-    Tests CRL validation when the CRL is signed by a CA with only `cRLSign`
-    (no `keyCertSign`), using a split-key CA architecture.
+    Tests CRL validation when the CRL is signed by an indirect CRL issuer
+    with only `cRLSign` (no `keyCertSign`).
 
     Per RFC 5280 Section 6.3.3(f), if a key usage extension is present in the
     CRL issuer's certificate, the `cRLSign` bit must be set. This test verifies
-    that a CRL signed by an entity with only `cRLSign` is accepted, as long as
-    the certificate chain itself is valid.
+    that an indirect CRL signed by an entity with only `cRLSign` is accepted.
 
-    This simulates a split-key CA where the same CA identity has separate keys
-    for certificate signing and CRL signing. Both keys share the same subject
-    name, enabling the CRL to apply to certificates issued by the cert-signing key.
+    Per RFC 5280 Section 5.2.5, the Issuing Distribution Point extension with
+    `indirectCRL` set to TRUE indicates that the CRL may contain revocation
+    information for certificates not issued by the CRL issuer.
+
+    This test uses a split-key CA architecture where two trusted CAs share the
+    same subject name: one for certificate signing (keyCertSign) and one for
+    CRL signing (cRLSign only). The CRL includes the IDP extension with
+    indirectCRL=true to indicate it's an indirect CRL.
     """
     validation_time = datetime.fromisoformat("2024-01-01T00:00:00Z")
 
@@ -500,10 +504,21 @@ def issuer_only_crlsign(builder: Builder) -> None:
     )
 
     # CRL is signed by the CRL-signing CA (which has only cRLSign)
-    # Omit AKI so CRL matching uses issuer name only, not key identifier
+    # Use IDP with indirect_crl=True to indicate this is an indirect CRL
     crl = builder.crl(
         signer=crl_signing_ca,
-        aki=None,
+        idp=ext(
+            x509.IssuingDistributionPoint(
+                full_name=None,
+                relative_name=None,
+                only_contains_user_certs=False,
+                only_contains_ca_certs=False,
+                only_some_reasons=None,
+                indirect_crl=True,
+                only_contains_attribute_certs=False,
+            ),
+            critical=True,  # IDP must be critical per RFC 5280
+        ),
         revoked=[
             # Revoke a random certificate, not the leaf.
             x509.RevokedCertificateBuilder()

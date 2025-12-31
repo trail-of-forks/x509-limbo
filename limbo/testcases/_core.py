@@ -375,6 +375,7 @@ class Builder:
         revoked: list[x509.RevokedCertificate] = [],
         aki: _Extension[x509.AuthorityKeyIdentifier] | Literal[True] | None = True,
         crl_number: _Extension[x509.CRLNumber] | Literal[True] | None = True,
+        idp: _Extension[x509.IssuingDistributionPoint] | None = None,
     ) -> x509.CertificateRevocationList:
         if issuer is None:
             if signer:
@@ -404,6 +405,9 @@ class Builder:
             builder = builder.add_extension(crl_number.ext, critical=crl_number.critical)
         elif crl_number:
             builder = builder.add_extension(x509.CRLNumber(1337), critical=False)
+
+        if idp is not None:
+            builder = builder.add_extension(idp.ext, critical=idp.critical)
 
         crl = builder.sign(
             private_key=key,
