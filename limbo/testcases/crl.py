@@ -500,8 +500,10 @@ def issuer_only_crlsign(builder: Builder) -> None:
     )
 
     # CRL is signed by the CRL-signing CA (which has only cRLSign)
+    # Omit AKI so CRL matching uses issuer name only, not key identifier
     crl = builder.crl(
         signer=crl_signing_ca,
+        aki=None,
         revoked=[
             # Revoke a random certificate, not the leaf.
             x509.RevokedCertificateBuilder()
