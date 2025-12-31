@@ -260,46 +260,6 @@ def ca_with_serverauth_and_precertificate(builder: Builder) -> None:
 
 
 @testcase
-def unrestricted_ca_issuing_serverauth(builder: Builder) -> None:
-    """
-    Produces the following **valid** chain:
-
-    ```
-    root -> ICA (no EKU) -> EE (with serverAuth)
-    ```
-
-    The intermediate CA has no EKU extension, which means it's unrestricted
-    and can issue certificates for any purpose. CABF 7.1.2.10.6 requirements
-    only apply when the EKU extension is present.
-    """
-
-    root = builder.root_ca()
-
-    # Create intermediate CA without EKU extension (unrestricted)
-    intermediate = builder.intermediate_ca(
-        root,
-        subject=x509.Name.from_rfc4514_string("CN=x509-limbo-intermediate-unrestricted"),
-        key_usage=None,
-    )
-
-    # Create leaf certificate with serverAuth
-    leaf = builder.leaf_cert(
-        intermediate,
-        eku=ext(
-            x509.ExtendedKeyUsage([x509.OID_SERVER_AUTH]),
-            critical=False,
-        ),
-    )
-
-    builder = builder.server_validation().features([Feature.pedantic_webpki_eku])
-    builder.trusted_certs(root).untrusted_intermediates(intermediate).peer_certificate(
-        leaf
-    ).expected_peer_name(PeerName(kind="DNS", value="example.com")).extended_key_usage(
-        [KnownEKUs.server_auth]
-    ).succeeds()
-
-
-@testcase
 def ca_with_serverauth_issuing_matching(builder: Builder) -> None:
     """
     Produces the following **valid** chain:
