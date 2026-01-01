@@ -505,6 +505,8 @@ def issuer_only_crlsign(builder: Builder) -> None:
 
     # CRL is signed by the CRL-signing CA (which has only cRLSign)
     # Use IDP with indirect_crl=True to indicate this is an indirect CRL
+    # Per RFC 5280 Section 5.3.3, indirect CRLs must include certificateIssuer
+    # extension in revoked entries to identify which CA issued the certificate.
     crl = builder.crl(
         signer=crl_signing_ca,
         idp=ext(
@@ -521,9 +523,14 @@ def issuer_only_crlsign(builder: Builder) -> None:
         ),
         revoked=[
             # Revoke a random certificate, not the leaf.
+            # Include certificateIssuer extension to identify the cert issuer.
             x509.RevokedCertificateBuilder()
             .serial_number(x509.random_serial_number())
             .revocation_date(validation_time - timedelta(days=1))
+            .add_extension(
+                x509.CertificateIssuer([x509.DirectoryName(ca_name)]),
+                critical=True,
+            )
             .build()
         ],
     )
