@@ -507,7 +507,7 @@ def issuer_only_crlsign(builder: Builder) -> None:
             x509.CRLDistributionPoints(
                 [
                     x509.DistributionPoint(
-                        full_name=None,
+                        full_name=[x509.UniformResourceIdentifier("http://example.com/crl")],
                         relative_name=None,
                         reasons=None,
                         crl_issuer=[x509.DirectoryName(ca_name)],
@@ -526,7 +526,7 @@ def issuer_only_crlsign(builder: Builder) -> None:
         signer=crl_signing_ca,
         idp=ext(
             x509.IssuingDistributionPoint(
-                full_name=None,
+                full_name=[x509.UniformResourceIdentifier("http://example.com/crl")],
                 relative_name=None,
                 only_contains_user_certs=False,
                 only_contains_ca_certs=False,
