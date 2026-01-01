@@ -489,6 +489,8 @@ def issuer_only_crlsign(builder: Builder) -> None:
     )
 
     # Leaf is signed by the cert-signing CA (valid certificate chain)
+    # Include CDP with crl_issuer pointing to the CRL-signing CA to indicate
+    # that the CRL for this certificate is issued by a different entity.
     leaf = builder.leaf_cert(
         parent=cert_signing_ca,
         subject=x509.Name(
@@ -499,6 +501,19 @@ def issuer_only_crlsign(builder: Builder) -> None:
         eku=ext(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False),
         san=ext(
             x509.SubjectAlternativeName([x509.DNSName("issuer-only-crlsign.example.com")]),
+            critical=False,
+        ),
+        extra_extension=ext(
+            x509.CRLDistributionPoints(
+                [
+                    x509.DistributionPoint(
+                        full_name=None,
+                        relative_name=None,
+                        reasons=None,
+                        crl_issuer=[x509.DirectoryName(ca_name)],
+                    )
+                ]
+            ),
             critical=False,
         ),
     )
