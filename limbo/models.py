@@ -220,13 +220,6 @@ class Feature(str, Enum):
     Tests that use Certificate Revocation Lists (CRLs).
     """
 
-    has_indirect_crl = "has-indirect-crl"
-    """
-    Tests that use indirect CRLs (CRLs signed by a different entity than the
-    certificate issuer, indicated by the IssuingDistributionPoint extension
-    with indirectCRL=true).
-    """
-
 
 class Importance(str, Enum):
     """
